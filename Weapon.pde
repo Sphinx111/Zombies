@@ -36,6 +36,15 @@ class Weapon {
     uiLayer.showText("rounds Left: " + roundsInMagazine, width - 100, 20);
   }
   
+  void reload() {
+    if (roundsInMagazine > 0) {
+      isReloading = true;
+      roundsInMagazine = 0;
+      reloadCounter = reloadDelay;
+    }
+    
+  }
+  
   boolean canShoot() {
     if (frameCount > lastFired + fireDelay && roundsInMagazine > 0 && !isPaused) {
       return true;
@@ -49,6 +58,7 @@ class Weapon {
       //update firing information on weapon
       lastFired = frameCount;
       roundsInMagazine -= 1;
+      soundG.trigger();
       
       //define a line for the raycast.
       angle = angle - (PI/2); // correct for "front" of player

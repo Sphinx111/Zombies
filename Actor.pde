@@ -1,3 +1,5 @@
+import org.jbox2d.dynamics.contacts.ContactEdge;
+
 class Actor {
   
   boolean isPlayer = false; //is this the player's character
@@ -10,7 +12,7 @@ class Actor {
   float maxSightRange = 1000; //max range in pixels that player can see.
   float FOV = PI/2; //angle player can see in Radians;
   float accel = 300;
-  float maxSpeed = 20;
+  float maxSpeed = 30;
   float turnSpeed = (2 * PI / 360) * 3;
   int health = 100;
   
@@ -21,8 +23,6 @@ class Actor {
     myTeam = team;
     if (myTeam == Team.ZOMBIE) {
       myColor = color(100,200,100);
-      health = 5000;
-      maxSpeed = maxSpeed * 1.1;
     } else if (myTeam == Team.HUMAN) {
       myColor = color(100,100,200);
       myWeapon = new Weapon();
@@ -32,11 +32,12 @@ class Actor {
     myType = type;
     if (myType == Type.BIG_ZOMBIE) {
       myRadius = 30;
+      health = 10000;
+      maxSpeed = maxSpeed * 1;
     } else {
       myRadius = 20;
-    }
-    if (isPlayer) {
-      pos = new Vec2(width/2,height/2);
+      maxSpeed = maxSpeed * 1.15;
+      health = 2500;
     }
     
     makeBody(pos, myRadius);
@@ -47,10 +48,13 @@ class Actor {
     body.applyForceToCenter(force);
   }
   
-  void move(float direction) {
+  void move(Vec2 dir) {
     Vec2 newVec = new Vec2(accel * (float)Math.cos(body.getAngle()-(PI/2)), accel * (float)Math.sin(body.getAngle()-(PI/2)));
-    newVec = newVec.mul(direction);
+    newVec = newVec.mul(dir.y);
+    Vec2 newVec2 = new Vec2(accel * (float)Math.sin(body.getAngle()-(PI/2)), accel * (float)Math.cos(body.getAngle()-(PI/2)));
+    newVec2 = newVec2.mul(dir.x);
     this.applyForce(newVec);
+    this.applyForce(newVec2);
     
     //if the new speed is greater than the maxspeed, scale it down to maxspeed.
     Vec2 newVel = body.getLinearVelocity();
@@ -59,18 +63,18 @@ class Actor {
     }
   }
   
-  void turn(float direction) {
-    float newAngle = body.getAngle() + (direction * turnSpeed);
+  void turnTowards(Vec2 pixPos) {
+    Vec2 worldPos = box2d.coordPixelsToWorld(pixPos);
+    Vec2 vecToMouse = worldPos.add(body.getPosition().mul(-1));
+    float newAngle = PI/2 + (float)Math.atan2(vecToMouse.y,vecToMouse.x);
     body.setAngularVelocity(0);
     body.setTransform(body.getWorldCenter(), newAngle);
   }
   
   void shoot() {
-    Vec2 textPos = box2d.getBodyPixelCoord(body);
-    fill(255);
-    textSize(12);
-    text("pew pew", textPos.x, textPos.y + myRadius + 10);
-    myWeapon.shoot(this, this.body.getAngle());
+    if (myWeapon != null) {
+      myWeapon.shoot(this, this.body.getAngle());
+    }
   }
   
   void update() {
@@ -78,12 +82,26 @@ class Actor {
     //float newAngle = (float) Math.atan2((double) body.getLinearVelocity().y, (double) body.getLinearVelocity().x); 
     //body.setTransform(body.getWorldCenter(), newAngle - ((float)Math.PI)/2.0f);
     if (health < 0) {
-      box2d.world.destroyBody(body);
       actorControl.removeActor(this);
     }
     if (myWeapon != null) {
       myWeapon.update();
     }
+    
+    for (ContactEdge ce = body.getContactList(); ce != null; ce = ce.next) {
+      Object other = ce.other.getUserData();
+      if (other instanceof Actor) {
+        Actor stranger = (Actor)other;
+        if (myTeam == Team.HUMAN && stranger.myTeam == Team.ZOMBIE) {
+          myTeam = Team.ZOMBIE;
+          myWeapon = null;
+          myColor = stranger.myColor;
+          myType = stranger.myType;
+          mainCamera.screenShake(50);
+        }
+      }
+    }
+    
   }
   
   void show() {
@@ -108,7 +126,7 @@ class Actor {
         rect(0,0,myRadius/4,myRadius);
         popMatrix();
       }
-      if (isPlayer) {
+      if (myTeam == Team.HUMAN && myType == Type.SOLDIER) {
         rect(0,myRadius/2,0,myRadius/2);
       }
       popMatrix();
@@ -152,10 +170,22 @@ class Actor {
       //This function carries out the default AI behaviour.
       Vec2 target = actorControl.player.body.getWorldCenter();
       Vec2 directionToTarget = target.add(body.getWorldCenter().mul(-1));
+      float distToTarget = box2d.scalarWorldToPixels(directionToTarget.length());
+      if (distToTarget < 200 && Math.random() < 0.001) {
+        soundZ.trigger();
+      }
       float newAngle = (float) Math.atan2((double)directionToTarget.y, (double)directionToTarget.x) + (PI/2);
       body.setTransform(body.getWorldCenter(),newAngle);
       body.setAngularVelocity(0);
-      move(1);
+      float moveChance = 1;
+      if (actorControl.player.myTeam == Team.HUMAN) {
+        moveChance = 1;
+      } else {
+        moveChance = 0.1;
+      }
+      if ((float)Math.random() <= moveChance) {
+        move(new Vec2(0,1));
+      }
     }
     
   }

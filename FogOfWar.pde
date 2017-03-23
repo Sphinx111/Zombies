@@ -1,4 +1,6 @@
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.Arrays;
 
@@ -11,120 +13,118 @@ class FogOfWar {
   PShape fogShape2;
   
   RayFogDetector fogDetector = new RayFogDetector(this);
+  int ray_index = 0;
   
   float angle = 0;
   float leftAngle = 0;
+  float wLeftAngle = 0;
   float rightAngle = 0;
+  float wRightAngle = 0;
   float bodyD = 1;
   float playerFOV = PI/2;
-  int ray_index = 0;
+  float playerSightRange = 300;
   
-  RaySort[] Vec2ToSort;
-  ArrayList<Vec2> visibleVertices = new ArrayList<Vec2>();
+  Vec2[] visibilityPolygon;
   
   void update() {
     Actor player = actorControl.player;
     playerFOV = player.FOV;
     angle = player.body.getAngle();
     rightAngle = angle + (playerFOV/2);
+    wRightAngle = -rightAngle - PI/2; //the pi/2 deals with my stupid choice of player orientation...
     leftAngle = angle - (playerFOV/2);
+    wLeftAngle = -leftAngle - PI/2;
     origin = box2d.getBodyPixelCoord(player.body);
     bodyD = player.myRadius;
     
-    //Everything beyond this point not currently working...
     /*
-    worldOrigin = new Vec2(box2d.scalarPixelsToWorld(origin.x - mainCamera.xOff),box2d.scalarPixelsToWorld(origin.y - mainCamera.yOff));
-    //(float)Math.sqrt((player.myRadius/2* player.myRadius/2) + (player.myRadius/2 * player.myRadius/2)); //alternate bodyDiameter calc
+    //Find mapobject blocks in the player's FOV.
+    worldOrigin = player.body.getPosition();
+    int exploreRays = 20;
+    float[] angleLimits = {wLeftAngle,wRightAngle};
+    ArrayList<MapObject> visibleMapObjects = exploratoryRaycast(angleLimits, exploreRays, playerSightRange);
     
-    //cast raycast at edge of player's vision to catch any walls right on the border.
-    Vec2 endLineLeft = new Vec2(worldOrigin.x + (fogDistance * (float)Math.sin(leftAngle)), worldOrigin.y + (fogDistance * (float)Math.cos(leftAngle)));
-    box2d.world.raycast(fogDetector,worldOrigin,endLineLeft);
-    //DEBUG LINE DRAWING
-    stroke(0,250,0);
-    strokeWeight(1);
-    line(box2d.scalarWorldToPixels(worldOrigin.x),box2d.scalarWorldToPixels(worldOrigin.y),box2d.scalarWorldToPixels(endLineLeft.x),box2d.scalarWorldToPixels(endLineLeft.y));
-    ray_index = 1;
-    for (MapObject MO : mapHandler.allObjects) {
-      float distToMO = MO.body.getWorldCenter().add(worldOrigin.mul(-1)).length();
-      if (distToMO < box2d.scalarPixelsToWorld(player.maxSightRange)) {
-        PolygonShape shape = (PolygonShape)(MO.myFix.m_shape);
-        Vec2[] vertices = shape.m_vertices;
-        for (Vec2 vertex: vertices) {
-          box2d.world.raycast(fogDetector,worldOrigin,vertex);
-          ray_index++;
-          //DEBUG LINE DRAWING
-          stroke(0,0,250);
-          strokeWeight(1);
-          line(box2d.scalarWorldToPixels(worldOrigin.x),box2d.scalarWorldToPixels(worldOrigin.y),box2d.scalarWorldToPixels(vertex.x),box2d.scalarWorldToPixels(vertex.y));
-        }        
+    //raycast TACTIC: For each raycast, store the endpoint, and then overwrite the endpoint if the ray hits anything.
+    
+    ArrayList<Float> anglesToCast = new ArrayList<Float>();
+    anglesToCast.add(wLeftAngle - PI/2);
+    for (MapObject mo : visibleMapObjects) {
+      Vec2[] vertices = ((PolygonShape)mo.myFix.m_shape).m_vertices;
+      for (Vec2 v : vertices) {
+        v = mo.body.getWorldPoint(v); //convert from local shape coords to body world coords
+        Vec2 fromPlayer = v.add(worldOrigin.mul(-1));
+        Float angleToV = (-(float)Math.atan2(fromPlayer.y,fromPlayer.x) + PI/2);
+        Float leftV = angleToV - 0.02;
+        Float rightV = angleToV + 0.02;
+        //if (angleToV > wLeftAngle + PI/2 - PI/4 && angleToV < wRightAngle + PI/2 - PI/4) {
+          anglesToCast.add(angleToV);
+          anglesToCast.add(leftV);
+          anglesToCast.add(rightV);
+        //}
       }
     }
-    //cast raycast at edge of player's vision to catch any walls right on the border.
-    Vec2 endLineRight = new Vec2(worldOrigin.x + (fogDistance * (float)Math.sin(rightAngle)), worldOrigin.y + (fogDistance * (float)Math.cos(rightAngle)));
-    box2d.world.raycast(fogDetector,worldOrigin,endLineRight);
-    
-    //get data from RayCastCallback object
-    Collection visionPolygonVertices = fogDetector.getVertices();
-    int n = visionPolygonVertices.size();
-    Object[] verticesToSort = visionPolygonVertices.toArray();
-    Vec2ToSort = new RaySort[n];
-    
-    //for each Hashmap key, create a comparable class for easy sorting.
-    for (int i = 0; i < n; i++) {
-      Vec2 point = (Vec2)verticesToSort[i];
-      Vec2ToSort[i] = new RaySort(point);      
+    anglesToCast.add(wRightAngle - PI/2);
+    anglesToCast.trimToSize();
+    float[] newAnglesArray = new float[anglesToCast.size()];
+    int tempI = 0;
+    for (Float f: anglesToCast) {
+      newAnglesArray[tempI] = Float.valueOf(f);
+      tempI += 1;
     }
-    //Sort arrays by custom comparator (sort by angle from smallest to largest);
-    Arrays.sort(Vec2ToSort,0,n);
-    
-    //if the angle to the vertex is within the player's FOV, copy point to visible vertices arrayList.
-    for (int i = 0; i < n; i++) {
-      if (Vec2ToSort[i].myAngle >= leftAngle && Vec2ToSort[i].myAngle <= rightAngle) {
-        visibleVertices.add(Vec2ToSort[i].myPoint);
-        strokeWeight(2);
-        stroke(0,0,255);
-        point(box2d.scalarWorldToPixels(Vec2ToSort[i].myPoint.x),box2d.scalarWorldToPixels(Vec2ToSort[i].myPoint.y));
-      }
-    }
-    
-    //points are now available in ArrayList for the show() function to use.
-    
+    Arrays.sort(newAnglesArray);
+    visibilityPolygon = new Vec2[newAnglesArray.length];
     ray_index = 0;
-    fogDetector.cleanup();
+    
+    for (int i = 0; i < newAnglesArray.length; i++) {
+      float currentAngle = newAnglesArray[i];
+      Vec2 castPoint = new Vec2(worldOrigin.x + ((box2d.scalarPixelsToWorld(playerSightRange)) * (float)Math.sin(currentAngle)), worldOrigin.y + ((box2d.scalarPixelsToWorld(playerSightRange) * (float)Math.cos(currentAngle))));
+      ray_index = i;
+      box2d.world.raycast(fogDetector,worldOrigin,castPoint);
+      if (fogDetector.lastPointHit != null) {
+        castPoint = fogDetector.lastPointHit;
+      }
+      visibilityPolygon[i] = castPoint;
+      Vec2 castPointPix = box2d.coordWorldToPixels(castPoint);
+      stroke(0,250,0);
+      strokeWeight(0.5);
+      line(origin.x,origin.y,castPointPix.x,castPointPix.y);
+      fogDetector.lastPointHit = null;            
+    }
+    System.out.println("Polygons in visibility Polygon array: " + visibilityPolygon.length);
+    if (visibilityPolygon[0] != null) {
+      Vec2 newCheck = box2d.coordWorldToPixels(visibilityPolygon[0]);
+      strokeWeight(2);
+      stroke(255);
+      line(origin.x,origin.y,newCheck.x,newCheck.y);
+    }
+    visibleMapObjects.clear();
+    anglesToCast.clear();
+    newAnglesArray = new float[newAnglesArray.length];
     */
   }
-  
-  class RaySort implements Comparable<RaySort> {
+    
+    /*
+    //returns a list of MapObjects hit by the rays defined in parameters
+    ArrayList<MapObject> exploratoryRaycast(float[] angleLimits, float numOfRays,float distCheck) {
+      float arcToSweep = angleLimits[1] - angleLimits[0];
+      float raySeparationAngle = arcToSweep / numOfRays;
+      ray_index = 0;
       
-      float NULL_ANGLE_VALUE = -999999999;
-      Vec2 myPoint;
-      float myAngle = NULL_ANGLE_VALUE; 
-      
-      public RaySort(Vec2 point) {
-        myPoint = point;
+      for (int i = 0; i < numOfRays; i++) {
+        float angleForRay = angleLimits[1] + (raySeparationAngle * i);
+        Vec2 rayEnd = new Vec2(worldOrigin.x + (box2d.scalarPixelsToWorld(distCheck) * (float)Math.sin(angleForRay)), worldOrigin.y + (box2d.scalarPixelsToWorld(distCheck) * (float)Math.cos(angleForRay)));
+        ray_index = i;
+        box2d.world.raycast(fogDetector,worldOrigin,rayEnd);
+        Vec2 rayEndPix = box2d.coordWorldToPixels(rayEnd);
+        stroke(255);
+        strokeWeight(1);
+        line(origin.x,origin.y,rayEndPix.x,rayEndPix.y);
       }
+      ArrayList<MapObject> results = fogDetector.getMapObjects();
+      fogDetector.cleanup();
       
-      //produces array sorted from RIGHT to LEFT
-      public int compareTo(RaySort comparison) {
-        if (comparison.myAngle == NULL_ANGLE_VALUE) {
-          Vec2 point = comparison.myPoint;
-          Vec2 vecToPoint = point.add(worldOrigin.mul(-1));
-          comparison.myAngle = (float)Math.atan2(vecToPoint.y,vecToPoint.x);
-        }
-        if (myAngle == NULL_ANGLE_VALUE) {
-          Vec2 vecToMe = myPoint.add(worldOrigin.mul(-1));
-          myAngle = (float)Math.atan2(vecToMe.y,vecToMe.x);
-        }
-        if (myAngle - comparison.myAngle < 0) {
-          return -1;
-        } else if (myAngle - comparison.myAngle > 0) {
-          return 1;
-        } else {
-          return 0;
-        }
-      }
-      
-    }
+      return results;
+    }*/
   
   void show() {
     text("" + leftAngle, 20,20);
@@ -135,7 +135,8 @@ class FogOfWar {
     Vec2 behindShape = new Vec2(origin.x + (fogDistance * (float)Math.sin(angle + PI)), origin.y + (fogDistance * (float)Math.cos(angle + PI)));
     Vec2 shapeLeftCorner = new Vec2(origin.x + (bodyD * (float)Math.sin(angle - (2 * PI / 360 * 135))), origin.y + (bodyD * (float)Math.cos(angle - (2 * PI / 360 * 135))));
     Vec2 shapeRightCorner = new Vec2(origin.x + (bodyD * (float)Math.sin(angle + (2 * PI / 360 * 135))), origin.y + (bodyD * (float)Math.cos(angle + (2 * PI / 360 * 135))));
-    
+    Vec2 endSightLeft = endLineLeft.mul(playerSightRange/fogDistance);
+    Vec2 endSightRight = endLineRight.mul(playerSightRange/fogDistance);
     
     fogShape = createShape();
     fogShape.beginShape();
@@ -146,22 +147,23 @@ class FogOfWar {
     fogShape.vertex(behindShape.x,behindShape.y);
     fogShape.vertex(offScreenRight.x,offScreenRight.y);
     fogShape.vertex(endLineRight.x,endLineRight.y);
+    fogShape.vertex(endLineLeft.x, endLineLeft.y);
     fogShape.beginContour();
     fogShape.vertex(endLineRight.x,endLineRight.y);
     fogShape.vertex(shapeRightCorner.x,shapeRightCorner.y);
+    /*for (int i = visibilityPolygon.length -1; i >= 0; i--) {
+      Vec2 v = visibilityPolygon[i];
+      Vec2 polPos = box2d.coordWorldToPixels(v);
+      fogShape.vertex(polPos.x,polPos.y);    
+    }*/
+    //fogShape.vertex(origin.x,origin.y);
     fogShape.vertex(shapeLeftCorner.x,shapeLeftCorner.y);
     fogShape.vertex(endLineLeft.x, endLineLeft.y);
-    
-    //This section currently not working (relies on raycasting)
-    /* fogShape.vertex(shapeRightCorner.x,shapeRightCorner.y);
-      for (Vec2 vertex : visibleVertices) {
-        fogShape.vertex(box2d.scalarWorldToPixels(vertex.x),box2d.scalarWorldToPixels(vertex.y));
-      }
-    fogShape.vertex(shapeLeftCorner.x,shapeLeftCorner.y);
-    */
+
     fogShape.endContour();
     fogShape.endShape();
     shapeMode(CORNER);
     shape(fogShape,0,0);
+    
   }
 }

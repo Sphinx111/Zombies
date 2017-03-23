@@ -1,15 +1,19 @@
 class MapObject {
  
+  int myID;
   Body body; 
   Fixture myFix;
+  BlockType myType;
   float pixWidth;
   float pixHeight;
   color myColor = color(100);
   
-  public MapObject (Vec2 worldPosCenter, float worldWidth, float worldHeight, float angleOfRotation) {
+  public MapObject (Vec2 worldPosCenter, float worldWidth, float worldHeight, float angleOfRotation, BlockType type, int newID) {
     pixWidth = box2d.scalarWorldToPixels(worldWidth);
     pixHeight = box2d.scalarWorldToPixels(worldHeight);
     makeBody(worldPosCenter, worldWidth, worldHeight, angleOfRotation);
+    myType = type;
+    myID = newID;
   }
   
   

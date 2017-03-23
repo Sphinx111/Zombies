@@ -8,11 +8,14 @@ class Camera {
     yOff = height/2 - box2d.getBodyPixelCoord(actorControl.player.body).y + applyScreenShake();
     pushMatrix();
     translate(xOff,yOff);
-    screenShakeValue = 0;
+    screenShakeValue -= 5;
+    if (screenShakeValue < 0){
+      screenShakeValue = 0;
+    }
   }
   
   void screenShake(float amount) {
-    screenShakeValue = amount;
+    screenShakeValue += amount;
   }
   
   float applyScreenShake() {

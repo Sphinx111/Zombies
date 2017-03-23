@@ -4,12 +4,13 @@ import java.io.BufferedReader;
 
 class MapHandler {
  
+  int uniqueIDCounter = 0;
   ArrayList<MapObject> allObjects = new ArrayList<MapObject>();
   PrintWriter printToSave;
   BufferedReader readToLoad;
   String name = "testMap";
   
-  void createMapObjectByMouse(Vec2 origin, Vec2 end, Vec2 objWidthSet) {
+  void createMapObjectByMouse(Vec2 origin, Vec2 end, Vec2 objWidthSet, BlockType type) {
     float midX = (origin.x + end.x) / 2;
     float midY = -(origin.y + end.y) / 2;
     Vec2 midPoint = new Vec2 (midX, midY);
@@ -19,14 +20,19 @@ class MapHandler {
     Vec2 objWidthVec = objWidthSet.add(end.mul(-1));
     float widthOfLine = (float)Math.sqrt((objWidthVec.x * objWidthVec.x) + (objWidthVec.y * objWidthVec.y));
     
-    allObjects.add(new MapObject(midPoint,lengthOfLine,widthOfLine,-angle));
+    allObjects.add(new MapObject(midPoint,lengthOfLine,widthOfLine,-angle, type, uniqueIDCounter));
+    uniqueIDCounter += 1;
   }
   
-  void createMapObjectFromLoad(Vec2 origin, float wide, float tall, float angle) {
+  void createActorByMouse(Vec2 origin, Team team, Type type) {
+    
+  }
+  
+  void createMapObjectFromLoad(Vec2 origin, float wide, float tall, float angle, BlockType type, int newID) {
     float xDiff = box2d.scalarPixelsToWorld(mainCamera.xOff);
     float yDiff = box2d.scalarPixelsToWorld(mainCamera.yOff);
     Vec2 alteredPos = new Vec2(origin.x - xDiff, origin.y - yDiff);
-    allObjects.add(new MapObject(alteredPos, wide,tall,angle));
+    allObjects.add(new MapObject(alteredPos, wide,tall,angle,type, newID));
   }
   
   void show() {
@@ -46,7 +52,12 @@ class MapHandler {
     }
     if (saveReady) {
       for (MapObject m : allObjects) {
+        //prepare stringbuilder for saving a line of data.
         StringBuilder newline = new StringBuilder();
+        //get string of blockType for first piece of data
+        newline.append(BlockType.getString(m.myType) + ",");
+        int saveID = m.myID;
+        newline.append(saveID + ",");
         Vec2 savePos = m.body.getPosition();
         newline.append(savePos.x + "," + savePos.y);
         float saveAngle = m.body.getAngle();
@@ -75,7 +86,9 @@ class MapHandler {
     }
     
     if (loadReady) {
-      allObjects.clear();
+      int highestLoadID = 0; //var tracks highest ID loaded in, so mapHandler can continue adding ID's from new highest value.
+      allObjects.clear(); //delete all existing map objects when loading new map.
+      
       try {
         //get data from file and store in memory quickly.
         StringBuilder sb = new StringBuilder();
@@ -95,18 +108,25 @@ class MapHandler {
       //build MapObjects from saved data
       try {
         for (int i = 0; i < inputLines.length; i++) {
-          String[] dataPieces = inputLines[i].split(",");  
-          float x = Float.parseFloat(dataPieces[0]);
-          float y = Float.parseFloat(dataPieces[1]);
-          float angle = Float.parseFloat(dataPieces[2]);
+          String[] dataPieces = inputLines[i].split(",");
+          int p = dataPieces.length;
+          BlockType loadType = BlockType.getTypeFromString(dataPieces[0]);
+          int newID = Integer.parseInt(dataPieces[1]);
+          float x = Float.parseFloat(dataPieces[2]);
+          float y = Float.parseFloat(dataPieces[3]);
+          float angle = Float.parseFloat(dataPieces[4]);
           Vec2 newPos = new Vec2(x,y);
-          float wide = Float.parseFloat(dataPieces[3]);
-          float tall = Float.parseFloat(dataPieces[4]);
-          createMapObjectFromLoad(newPos,wide,tall,angle);
+          float wide = Float.parseFloat(dataPieces[5]);
+          float tall = Float.parseFloat(dataPieces[6]);
+          createMapObjectFromLoad(newPos,wide,tall,angle, loadType, newID);
+          if (newID > highestLoadID) {
+            highestLoadID = newID;
+          }
         }
       } catch (Exception e) {
         e.printStackTrace();
       }
+      uniqueIDCounter = highestLoadID; // lets map handler continue adding map objects from loaded ID system
       
     }
   }

@@ -2,13 +2,13 @@ class KeyboardHandler {
   
   boolean[] keys = new boolean[9];
   // 0 - Shoot (x)
-  // 1 - Forward
-  // 2 - Backwards
-  // 3 - Left
-  // 4 - Right
+  // 1 - W Forward
+  // 2 - S Backwards
+  // 3 - A Left
+  // 4 - D Right
   // 5 - Pause (p)
   // 6 - Creator Mode (m)
-  // 7 - SaveMap (s);
+  // 7 - SaveMap (o);
   // 8 - LoadMap (l);
   
   void processKeyInput() {
@@ -45,16 +45,16 @@ class KeyboardHandler {
     if (key == 'x') {
       keys[0] = true;
     }
-    if (keyCode == UP) {
+    if (key == 'w' || key == 'W') {
       keys[1] = true;
     }
-    if (keyCode == DOWN) {
+    if (key == 's' || key == 'S') {
       keys[2] = true;
     }
-    if (keyCode == LEFT) {
+    if (key == 'a' || key == 'A') {
       keys[3] = true;
     }
-    if (keyCode == RIGHT) {
+    if (key == 'd' || key == 'D') {
       keys[4] = true;
     }
     if (key == 'p') {
@@ -65,6 +65,9 @@ class KeyboardHandler {
         isPaused = true;
       }
     }
+    if (key == 'r' || key == 'R') {
+      actorControl.player.myWeapon.reload();
+    }
     if (key == 'm') {
       //keys[6] = true;
       if (creatorMode) {
@@ -73,7 +76,7 @@ class KeyboardHandler {
         creatorMode = true;
       }
     }
-    if (key == 's') {
+    if (key == 'o') {
       mapHandler.saveMap();
     }
     if (key == 'l') {
@@ -85,16 +88,16 @@ class KeyboardHandler {
     if (key == 'x') {
       keys[0] = false;
     }
-    if (keyCode == UP) {
+    if (key == 'w' || key == 'W') {
       keys[1] = false;
     }
-    if (keyCode == DOWN) {
+    if (key == 's' || key == 'S') {
       keys[2] = false;
     }
-    if (keyCode == LEFT) {
+    if (key == 'a' || key == 'A') {
       keys[3] = false;
     }
-    if (keyCode == RIGHT) {
+    if (key == 'd' || key == 'D') {
       keys[4] = false;
     }
     if (key == 'p') {

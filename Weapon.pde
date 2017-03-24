@@ -58,7 +58,6 @@ class Weapon {
       //update firing information on weapon
       lastFired = frameCount;
       roundsInMagazine -= 1;
-      soundG.trigger();
       
       //define a line for the raycast.
       angle = angle - (PI/2); // correct for "front" of player
@@ -69,7 +68,15 @@ class Weapon {
       box2d.world.raycast(rayDetect, origin,endPoint);
       
       //tell main camera to apply screenShake
-      mainCamera.screenShake(5);
+      //add sounds
+      if (firer.isPlayer) {
+        mainCamera.screenShake(5);
+        soundManager.triggerSound("gunshot",1);
+      } else if (damage > 500) {
+        mainCamera.screenShake(1);
+      } else {
+        soundManager.triggerSound("gunshotOther",0.5);
+      }
       
       //draw line to the point hit
       strokeWeight(2);

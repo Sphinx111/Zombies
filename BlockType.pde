@@ -21,13 +21,13 @@ public enum BlockType {
   }
   
   public static BlockType getTypeFromString(String testString) {
-    if (testString == "FIXED") {
+    if (testString.equals("FIXED")) {
       return BlockType.FIXED;
-    } else if (testString == "SENSOR") {
+    } else if (testString.equals("SENSOR")) {
       return BlockType.SENSOR;
-    } else if (testString == "DOOR") {
+    } else if (testString.equals("DOOR")) {
       return BlockType.DOOR;
-    } else if (testString == "ACTOR") {
+    } else if (testString.equals("ACTOR")) {
       return BlockType.ACTOR;
     } else {
       return BlockType.NO_TYPE;

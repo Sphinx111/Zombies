@@ -14,6 +14,10 @@ class RayCastDetector implements RayCastCallback {
       Actor actorHit = (Actor)testObject;
       if (actorHit.myTeam == Team.HUMAN) {
         return 1;
+      } else {
+        targetFixtureHit = fix;
+        pointHit = point;
+        return fraction;
       }
     } else if (testObject instanceof MapObject) {
       return fraction;

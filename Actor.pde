@@ -17,6 +17,9 @@ class Actor {
   int health = 100;
   
   Body body; //The actor's physics simulation body.
+  float humanSightRange = 500; //range at which AIs will see and engage zombies.
+  
+  Actor targetZombie = null; //making sure variable is initialized for AI Behaviour checks.
   
   public Actor(Vec2 pos, boolean isPlayer, Team team, Type type) {
     this.isPlayer = isPlayer;
@@ -33,10 +36,11 @@ class Actor {
     if (myType == Type.BIG_ZOMBIE) {
       myRadius = 30;
       health = 10000;
-      maxSpeed = maxSpeed * 1;
+      accel = accel * 2;
+      maxSpeed = maxSpeed * 1.1;
     } else {
       myRadius = 20;
-      maxSpeed = maxSpeed * 1.15;
+      maxSpeed = maxSpeed * 1.2;
       health = 2500;
     }
     
@@ -97,7 +101,9 @@ class Actor {
           myWeapon = null;
           myColor = stranger.myColor;
           myType = stranger.myType;
-          mainCamera.screenShake(50);
+          if (isPlayer) {
+            mainCamera.screenShake(50);
+          }
         }
       }
     }
@@ -150,6 +156,9 @@ class Actor {
     // Parameters that affect physics
     fd.density = 1;
     fd.friction = 0;
+    if (!isPlayer) {
+      fd.friction = -0.2;
+    }
     fd.restitution = 0.05;
     
     // Define the body and make it from the shape
@@ -167,24 +176,97 @@ class Actor {
   
   void runBehaviour() {
     if (!isPaused && !creatorMode) {
-      //This function carries out the default AI behaviour.
-      Vec2 target = actorControl.player.body.getWorldCenter();
-      Vec2 directionToTarget = target.add(body.getWorldCenter().mul(-1));
-      float distToTarget = box2d.scalarWorldToPixels(directionToTarget.length());
-      if (distToTarget < 200 && Math.random() < 0.001) {
-        soundZ.trigger();
-      }
-      float newAngle = (float) Math.atan2((double)directionToTarget.y, (double)directionToTarget.x) + (PI/2);
-      body.setTransform(body.getWorldCenter(),newAngle);
-      body.setAngularVelocity(0);
-      float moveChance = 1;
-      if (actorControl.player.myTeam == Team.HUMAN) {
-        moveChance = 1;
-      } else {
-        moveChance = 0.1;
-      }
-      if ((float)Math.random() <= moveChance) {
-        move(new Vec2(0,1));
+      if (myTeam == Team.ZOMBIE) {
+        //This function carries out the default AI behaviour.
+        boolean seekingTarget = true;
+        float chanceOfSelecting = 1/totalHumanPlayers;
+        Actor targetHuman = actorControl.player;
+        if (targetHuman.myTeam == Team.ZOMBIE) {
+          seekingTarget = true;
+        }
+        int maxTargetLoops = 40;
+        int i = 0;
+        while (seekingTarget) {
+          for (Actor a : actorControl.actorsInScene) {
+            if (a.myTeam == Team.HUMAN) {
+              if (Math.random() < chanceOfSelecting) {
+                targetHuman = a;
+                seekingTarget = false;
+              }
+            }
+          }
+          i++;
+          if (i > maxTargetLoops) {
+            chanceOfSelecting = 1;
+          }
+          if (i > maxTargetLoops + 5) {
+            break;
+          }
+        }
+        Vec2 target = targetHuman.body.getWorldCenter();
+        Vec2 directionToTarget = target.add(body.getWorldCenter().mul(-1));
+        float distToTarget = box2d.scalarWorldToPixels(directionToTarget.length());
+        if (distToTarget < 300 && Math.random() < 0.001 && targetHuman == actorControl.player) {
+          float volume = (300 - distToTarget) / 300;
+          soundManager.triggerSound("zombie_moan", volume);
+        }
+        float newAngle = (float) Math.atan2((double)directionToTarget.y, (double)directionToTarget.x) + (PI/2);
+        body.setTransform(body.getWorldCenter(),newAngle);
+        body.setAngularVelocity(0);
+        float moveChance = 1;
+        if (targetHuman.myTeam == Team.HUMAN) {
+          moveChance = 1;
+        } else {
+          moveChance = 0.1;
+        }
+        if ((float)Math.random() <= moveChance) {
+          move(new Vec2(0,1));
+        }
+      } else if (myTeam == Team.HUMAN) {
+        //move roughly towards player
+        Vec2 moveTarget = actorControl.player.body.getWorldCenter();
+        moveTarget = new Vec2(moveTarget.x - 2 + ((float)Math.random() * 4),moveTarget.y - 2 + ((float)Math.random() * 4));
+        Vec2 directionToTarget = moveTarget.add(body.getWorldCenter().mul(-1));
+        directionToTarget.normalize();
+        move(directionToTarget);
+        
+        //find and shoot at target
+        boolean seekingTarget = true;
+        float chanceOfSelecting = 1/(numOfActors - totalHumanPlayers);
+        if (targetZombie == null) {
+          seekingTarget = true;
+        }
+        int maxTargetLoops = 40;
+        int i = 0;
+        while (seekingTarget) {
+          for (Actor a : actorControl.actorsInScene) {
+            if (a.myTeam == Team.ZOMBIE) {
+              if (Math.random() < chanceOfSelecting) {
+                targetZombie = a;
+                seekingTarget = false;
+              }
+            }
+          }
+          i++;
+          if (i > maxTargetLoops) {
+            chanceOfSelecting = 1;
+          } 
+          if (i > maxTargetLoops + 5) {
+            break;
+          }
+        }        
+        if (targetZombie == null) {
+          targetZombie = actorControl.player;
+        }
+        Vec2 directionToTargetShoot = targetZombie.body.getWorldCenter().add(body.getWorldCenter().mul(-1));
+        float distanceToTargetShoot = box2d.scalarWorldToPixels(directionToTarget.length());
+        float newAngle = (float) Math.atan2((double)directionToTargetShoot.y, (double)directionToTargetShoot.x) + (PI/2);
+        body.setTransform(body.getWorldCenter(),newAngle);
+        body.setTransform(body.getWorldCenter(),newAngle);
+        body.setAngularVelocity(0);
+        if (distanceToTargetShoot <= humanSightRange) {
+          shoot();
+        }
       }
     }
     

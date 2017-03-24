@@ -40,6 +40,11 @@ class UILayer {
     popMatrix();
   }
   
+  void createUIElement(float mouseX,float mouseY, String type) {
+    //this method is called from mouseHandler when editing the map. Should open a uiPanel that lets the player edit the information of the block being placed/selected.
+    
+  }
+  
   void showUIButtons() {
    
     rectMode(CORNER);

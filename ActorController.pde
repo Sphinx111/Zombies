@@ -3,15 +3,20 @@ class ActorController {
   ArrayList<Actor> actorsInScene = new ArrayList<Actor>();
   ArrayList<Actor> actorsToRemove = new ArrayList<Actor>(0);
   Actor player = null;
-  Vec2 playerStartPos = new Vec2(width/2,height/2);
   
   public ActorController(int n) {
     for (int i = 0; i < n; i++) {
-      Vec2 newPos = new Vec2((width/2 - 50) + (float)Math.random() * 100, (height/2 - 250) + (float)Math.random() * 100);
-      if (i == 0) {
-        Actor newPlayer = new Actor(playerStartPos, true, Team.HUMAN, Type.SOLDIER);
-        actorsInScene.add(newPlayer);
-        player = newPlayer;
+      Vec2 newPos = new Vec2((playerStartPos.x - 50) + ((float)Math.random() * 100), (playerStartPos.y - 250) + ((float)Math.random() * 100));
+      if (i < totalHumanPlayers) {
+        newPos = new Vec2((playerStartPos.x - 50) + ((float)Math.random() * 100), (playerStartPos.y - 50) + ((float)Math.random() * 100));
+        if (i == 0) {
+          Actor newPlayer = new Actor(newPos, true, Team.HUMAN, Type.SOLDIER);
+          actorsInScene.add(newPlayer);
+          player = newPlayer;
+        } else {
+          Actor newPlayer = new Actor(newPos, false, Team.HUMAN, Type.SOLDIER);
+          actorsInScene.add(newPlayer);
+        }
       } else if (i % 10 == 0) {
         actorsInScene.add(new Actor(newPos, false, Team.ZOMBIE, Type.BIG_ZOMBIE));
       } else {

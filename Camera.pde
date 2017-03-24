@@ -1,6 +1,6 @@
 class Camera {
-  float xOff;
-  float yOff;
+  float xOff = playerStartPos.x;
+  float yOff = playerStartPos.y;
   float screenShakeValue = 0;
   
   void applyTransform() {

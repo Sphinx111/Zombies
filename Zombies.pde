@@ -12,12 +12,14 @@ KeyboardHandler keyHandler;
 FogOfWar fogOfWar;
 UILayer uiLayer;
 MouseHandler mouseHandler;
+SoundManager soundManager;
 Camera mainCamera;
-Minim minim;
-AudioSample soundZ;
-AudioSample soundG;
 Boolean isPaused = true;
 Boolean creatorMode = false;
+
+Vec2 playerStartPos;
+int numOfActors = 15;
+int totalHumanPlayers = 3;
 
 float newMouseX;
 float newMouseY;
@@ -26,20 +28,17 @@ void setup() {
   size(1300,720);
   box2d = new Box2DProcessing(this);
   box2d.createWorld(new Vec2(0,0));
+  playerStartPos = new Vec2(width/2, height/2);
+  mainCamera = new Camera();
   gameStateManager = new StateManager();
-  actorControl = new ActorController(15);
+  actorControl = new ActorController(numOfActors);
   mapHandler = new MapHandler();
   keyHandler = new KeyboardHandler();
   mouseHandler = new MouseHandler();
   fogOfWar = new FogOfWar();
   uiLayer = new UILayer();
-  mainCamera = new Camera();
+  soundManager = new SoundManager(this);
   mapHandler.loadMap("testMap");
-  minim = new Minim(this);
-  soundZ = minim.loadSample("zombie.mp3", 512);
-  soundZ.setGain(-20);
-  soundG = minim.loadSample("gunshot.mp3", 512);
-  soundG.setGain(-15);
 }
 
 void draw() {
@@ -48,6 +47,7 @@ void draw() {
   mouseHandler.update();
   keyHandler.processKeyInput();
   mouseHandler.show();
+  mapHandler.update();
   mapHandler.show();
   if (!isPaused) {
     box2d.step();
@@ -59,10 +59,9 @@ void draw() {
     fogOfWar.show();
   }
   uiLayer.show();
-  if (!isPaused) {
-    //Last step of each frame, perform cleanup over iterable lists.
-    actorControl.cleanup();
-  }
+  //Last step of each frame, perform cleanup over iterable lists, undoes camera transform matrix, checks gameState at end of tick.
+  actorControl.cleanup();
+  mapHandler.cleanup();
   mainCamera.undoTransform();
   gameStateManager.update();
 }

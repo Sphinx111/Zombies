@@ -20,8 +20,12 @@ class StateManager {
    
    if (frameCount >= playerDeathMoment + framesToReset) {
      performCleanup();
-     actorControl = new ActorController(15);
-     mapHandler.loadMap("testMap.txt");
+     numOfActors -= 5;
+     if (numOfActors < 15) {
+       numOfActors = 15;
+     }
+     actorControl = new ActorController(numOfActors);
+     mapHandler.loadMap("testMap");
      playerDeathMoment = DEATH_NULL;
      startingReset = false;
    }
@@ -29,6 +33,10 @@ class StateManager {
  }
  
  void performCleanup() {
+   for (MapObject o : mapHandler.allObjects) {
+     mapHandler.removeObject(o);
+   }
+   mapHandler.cleanup();
    for (Actor a : actorControl.actorsInScene) {
      actorControl.removeActor(a);
    }
